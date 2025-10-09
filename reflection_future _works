@@ -1,0 +1,21 @@
+# Reflection and Future Work
+
+## Challenges Faced
+- Designing thread-safe data structures without heavy locking.
+- Balancing workload among threads to avoid idle cores.
+- Handling negative weight cycles correctly in concurrent context.
+- Ensuring consistency between sequential and concurrent results.
+
+## Lessons Learned
+- Importance of immutable graph structures for safe concurrency.
+- Trade-offs between fine-grained locking and coarse synchronization.
+- Effect of Python's GIL on multi-threaded CPU-bound tasks.
+- Value of thorough testing, including edge cases and performance tests.
+
+## Potential Improvements
+- Explore multiprocessing or C++ implementations to bypass GIL.
+- Implement dynamic work-stealing for better load balancing.
+- Optimize data locality further with memory-aligned data structures.
+- Add support for other shortest path algorithms like concurrent Dijkstra.
+- Build a more comprehensive benchmarking suite with real-world datasets.
+
