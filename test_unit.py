@@ -125,5 +125,18 @@ class TestShortestPath(unittest.TestCase):
         self.assertEqual(dist_seq, expected)
         self.assertEqual(dist_conc, expected)
 
+    def test_sample_input_file_matches_expected_output(self):
+        # sample/input.txt solved from node 0 must match sample/output.txt
+        import os
+        from utils import load_graph, format_distance
+        here = os.path.dirname(os.path.abspath(__file__))
+        g = load_graph(os.path.join(here, 'sample', 'input.txt'))
+        with open(os.path.join(here, 'sample', 'output.txt'), encoding='utf-8') as fh:
+            expected = [ln.strip() for ln in fh if ln.strip()]
+        for solver in (lambda: bellman_ford_sequential(g, 0),
+                       lambda: ConcurrentBellmanFord(g, 0, num_threads=2).run()):
+            self.assertEqual([format_distance(d) for d in solver()], expected)
+
+
 if __name__ == '__main__':
     unittest.main()
