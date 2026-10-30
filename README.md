@@ -21,7 +21,7 @@
 - **Random graph generator** (`generate_random_graph`) with configurable size, edge probability, weight range, and an optional ~10% share of negative edges.
 - **Built-in benchmark CLI** that times the sequential and concurrent solvers on the same graph and counts distance mismatches.
 - **Graph files from the CLI**: `python main.py --input sample/input.txt` solves a graph written as `<nodes> <edges>` then `u v w` per line and prints one distance per node (`INF` if unreachable).
-- **Unit tests** (8) for a standard mixed-weight graph, negative-cycle detection (both solvers), disconnected and zero-edge graphs, the single-node case, a large sparse graph, repeatability of the concurrent solver, and the `sample/` input/output pair.
+- **Unit tests** (9) for a standard mixed-weight graph, negative-cycle detection (both solvers), disconnected and zero-edge graphs, the single-node case, a large sparse graph, repeatability of the concurrent solver, and the `sample/` input/output pair.
 
 ## 🛠 Tech Stack
 
@@ -149,7 +149,7 @@ print(ConcurrentBellmanFord(g, 0, num_threads=4).run())
 
 ## 📊 Results
 
-- All 8 unit tests pass (`python -m unittest test_unit -v`).
+- All 9 unit tests pass (`python -m unittest test_unit -v`).
 - Both solvers return `[0.0, 5.0, 3.0, 10.0, 7.0]` on the reference graph and both detect negative cycles.
 - Measured with `benchmark.py` (see `performance_report` for the full table): the concurrent solver gives the same distances as the sequential one, but is **slower** in every case measured (about 0.08x-0.27x of sequential speed). Example: 1,000 nodes / 9,940 edges with ~10% negative edges, 8 threads: sequential 1.16 s, concurrent 4.33 s.
 
