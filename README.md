@@ -20,7 +20,8 @@
 - **CSR-style graph storage**: edges are kept in flat `edges_dst` / `weights` arrays, sorted per source node and indexed by `node_ptrs`, for cache-friendly traversal.
 - **Random graph generator** (`generate_random_graph`) with configurable size, edge probability, weight range, and an optional ~10% share of negative edges.
 - **Built-in benchmark CLI** that times the sequential and concurrent solvers on the same graph and counts distance mismatches.
-- **Unit tests** for a standard mixed-weight graph, negative-cycle detection (both solvers), disconnected graphs (unreachable nodes stay `inf`), and the single-node case.
+- **Graph files from the CLI**: `python main.py --input sample/input.txt` solves a graph written as `<nodes> <edges>` then `u v w` per line and prints one distance per node (`INF` if unreachable).
+- **Unit tests** (8) for a standard mixed-weight graph, negative-cycle detection (both solvers), disconnected and zero-edge graphs, the single-node case, a large sparse graph, repeatability of the concurrent solver, and the `sample/` input/output pair.
 
 ## 🛠 Tech Stack
 
@@ -62,16 +63,18 @@ Shortest-path-finder/
 ├── main.py                   # CLI: correctness check or benchmark
 ├── test_framework.py         # test_correctness() and benchmark()
 ├── test_unit.py              # unittest suite
-├── utils.py                  # Placeholder for future helpers
+├── utils.py                  # load_graph() for sample/input.txt-style files, format_distance()
+├── benchmark.py              # Reproducible benchmark that prints a Markdown table
 ├── run_all.ps1               # Runs unit tests, a 2,000-node benchmark, and the correctness check
 ├── sample/
 │   ├── input.txt             # Example graph: "<nodes> <edges>" then "u v w" per line
 │   └── output.txt            # Expected distances from node 0 for that graph
 ├── Design_document.md        # Design notes
-├── performance_report        # Performance write-up
+├── performance_report        # Measured benchmark results and analysis
 ├── reflection_future _works  # Reflection and future-work notes
 ├── output_utf8.md            # Captured console output of run_all.ps1
-└── requirements.txt
+├── requirements.txt          # Runtime: none (standard library only)
+└── requirements-dev.txt      # pytest (optional test runner)
 ```
 
 ## 🚀 Getting Started
@@ -81,7 +84,14 @@ git clone https://github.com/Gonugunta-Venkata-Jayanth/Shortest-path-finder.git
 cd Shortest-path-finder
 ```
 
-No third-party packages are needed to run the solver or the tests (`requirements.txt` lists `numpy` and `pytest`, but the code does not import them).
+No third-party packages are needed to run the solver or the tests. `pip install -r requirements-dev.txt` adds `pytest` if you prefer it to `unittest`.
+
+### Solve a graph file
+
+```bash
+python main.py --input sample/input.txt            # prints 0 6 7 11 9, one per line (matches sample/output.txt)
+python main.py --input my_graph.txt --source 2     # pick another source node
+```
 
 ### Correctness check
 
@@ -102,11 +112,20 @@ python main.py --nodes 2000 --edge_prob 0.01 --threads 8 --allow_negative
 | `--threads` | `8` | Worker threads for the concurrent solver |
 | `--allow_negative` | off | Makes ~10% of edges negative |
 | `--test` | off | Runs the correctness check instead of the benchmark |
+| `--input` | none | Solve this graph file instead of a random graph |
+| `--source` | `0` | Source node for `--input` |
+| `--seed` | none | Seed the random graph for a reproducible benchmark |
 
 ### Unit tests
 
 ```bash
 python -m unittest test_unit.py -v
+```
+
+### Reproducible benchmark table
+
+```bash
+python benchmark.py --repeats 3
 ```
 
 ### Everything at once (Windows PowerShell)
@@ -128,19 +147,18 @@ print(bellman_ford_sequential(g, 0))                 # [0.0, 5.0, 3.0, 10.0, 7.0
 print(ConcurrentBellmanFord(g, 0, num_threads=4).run())
 ```
 
-## 📊 Results (from the captured run in `output_utf8.md`)
+## 📊 Results
 
-- All 5 unit tests pass.
-- Both solvers return `[0.0, 5.0, 3.0, 10.0, 7.0]` on the reference graph, and both detect the negative cycle.
-- Benchmark with `nodes=2000, edge_prob=0.01, threads=8, allow_negative=True`: both solvers correctly reported a negative-weight cycle; sequential took **5.177 s** and concurrent **16.488 s** on that machine.
+- All 8 unit tests pass (`python -m unittest test_unit -v`).
+- Both solvers return `[0.0, 5.0, 3.0, 10.0, 7.0]` on the reference graph and both detect negative cycles.
+- Measured with `benchmark.py` (see `performance_report` for the full table): the concurrent solver gives the same distances as the sequential one, but is **slower** in every case measured (about 0.08x-0.27x of sequential speed). Example: 1,000 nodes / 9,940 edges with ~10% negative edges, 8 threads: sequential 1.16 s, concurrent 4.33 s.
 
-Because of CPython's Global Interpreter Lock (GIL), CPU-bound relaxation in threads plus per-edge locking can be slower than the sequential loop. The future-work items below target this.
+Because of CPython's Global Interpreter Lock (GIL), CPU-bound relaxation in threads plus per-edge locking is slower than the sequential loop. The future-work items below target this.
 
 ## 🔮 Future Work
 
 - Use `multiprocessing` / shared memory, or a C/C++/Rust extension, to get around the GIL.
 - Replace per-edge locking with lock-free per-thread buffers that are merged once per round.
-- Read graphs from files in the `sample/input.txt` format through the CLI.
 - Add work-stealing for uneven degree distributions, plus other algorithms (e.g. parallel Dijkstra / Δ-stepping for non-negative weights).
 - Add CI (GitHub Actions) to run the test suite on every push.
 
