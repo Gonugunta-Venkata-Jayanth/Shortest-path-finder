@@ -1,2 +1,2 @@
-numpy==1.25.0
-pytest==7.4.0
+# Runtime: standard library only (no third-party packages needed).
+# Dev/test extras are in requirements-dev.txt.
