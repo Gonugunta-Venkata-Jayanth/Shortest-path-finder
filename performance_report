@@ -38,7 +38,7 @@ both correctly reporting a negative-weight cycle.
 - **The thread-pool version does not beat the sequential version in CPython.** Edge relaxation is
   pure-Python, CPU-bound work, so the Global Interpreter Lock lets only one thread run Python
   bytecode at a time. Threads add task-submission overhead and a `threading.Lock` acquire/release
-  for every edge relaxed, so the concurrent solver ran roughly 4-12x slower in every case measured.
+  for every edge relaxed, so the concurrent solver ran roughly 4-13x slower in every case measured.
 - **Correctness holds.** Both solvers produced identical distances on every graph without a
   negative cycle (0 mismatches), and both detected the negative-weight cycle in the negative-edge case.
 - **Early exit dominates on positive-weight graphs.** With only positive weights the distances
