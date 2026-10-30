@@ -90,24 +90,24 @@ class TestShortestPath(unittest.TestCase):
         self.assertEqual(dist_seq, [0.0])
         self.assertEqual(dist_conc, [0.0])
 
-def test_large_sparse_graph_performance(self):
-    start = time.time()
-    dist_seq = bellman_ford_sequential(self.large_sparse_graph, 0)
-    seq_time = time.time() - start
+    def test_large_sparse_graph_performance(self):
+        start = time.time()
+        dist_seq = bellman_ford_sequential(self.large_sparse_graph, 0)
+        seq_time = time.time() - start
 
-    start = time.time()
-    dist_conc = ConcurrentBellmanFord(self.large_sparse_graph, 0, num_threads=8).run()
-    conc_time = time.time() - start
+        start = time.time()
+        dist_conc = ConcurrentBellmanFord(self.large_sparse_graph, 0, num_threads=8).run()
+        conc_time = time.time() - start
 
-    for d_seq, d_conc in zip(dist_seq, dist_conc):
-        self.assertAlmostEqual(d_seq, d_conc)
+        for d_seq, d_conc in zip(dist_seq, dist_conc):
+            self.assertAlmostEqual(d_seq, d_conc)
 
-    self.assertLess(seq_time, 30, f"Sequential took too long: {seq_time}s")
+        self.assertLess(seq_time, 30, f"Sequential took too long: {seq_time}s")
 
-    if seq_time > 0.01:
-        self.assertLess(conc_time, seq_time * 5, f"Concurrent too slow: {conc_time}s")
-    else:
-        print(f"Warning: sequential time very low ({seq_time}s), skipping concurrency speed test")
+        if seq_time > 0.01:
+            self.assertLess(conc_time, seq_time * 5, f"Concurrent too slow: {conc_time}s")
+        else:
+            print(f"Warning: sequential time very low ({seq_time}s), skipping concurrency speed test")
 
     def test_concurrent_repeatability(self):
         # Run concurrent algorithm multiple times to catch race conditions
