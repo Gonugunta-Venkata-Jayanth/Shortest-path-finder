@@ -1,34 +1,55 @@
 # Performance Report: Concurrent Shortest Path Finder
 
-## Test Setup
-- Hardware: Intel i7 8-core CPU, 16GB RAM
-- Environment: Python 3.13, Windows 10, PowerShell terminal
-- Graphs Tested:
-  - Small graph: 100 nodes, 500 edges
-  - Medium graph: 2000 nodes, 20,000 edges
-  - Large sparse graph: 10,000 nodes, 50,000 edges
-- Parameters:
-  - Threads varied from 1 to 8
-  - Edge weights: positive and negative
+All numbers below were **measured**, not estimated. Reproduce them with:
 
-## Results Summary
+```bash
+python benchmark.py --repeats 3
+```
 
-| Graph Size | Threads | Sequential Time (s) | Concurrent Time (s) | Speedup |
-|------------|---------|--------------------|--------------------|---------|
-| Small      | 1       | 0.12               | 0.11               | 1.1x    |
-| Medium     | 1       | 4.95               | 3.20               | 1.55x   |
-| Large Sparse | 8     | 28.40              | 9.10               | 3.12x   |
+`benchmark.py` seeds the random generator (`--seed 42` by default), builds each graph with
+`generate_random_graph` (weights uniform in [1, 10]; the "negative" case flips ~10% of edges
+negative), and reports the best of 3 timings (`time.perf_counter`) for each solver on the same graph.
 
-## Scalability Analysis
-- Concurrent implementation scales with increasing thread count, but speedup plateaus beyond 8 threads due to Python GIL and synchronization overhead.
-- Negative cycles correctly detected without affecting performance.
-- Best performance gains observed on large sparse graphs due to parallel edge relaxation.
+## Test setup (this run)
 
-## Observations
-- Sequential baseline remains efficient for small graphs.
-- Performance sensitive to graph topology and edge distribution.
-- Concurrent overhead noticeable on very small graphs.
+- Machine: 2-vCPU Linux (aarch64) cloud sandbox
+- Python 3.12.15 (CPython, with the GIL)
+- Date: 2026-10-30
+
+## Results
+
+| Graph | Nodes | Edges | Threads | Negative edges | Sequential (s) | Concurrent (s) | Speedup | Result |
+|---|---|---|---|---|---|---|---|---|
+| Small | 100 | 458 | 1 | no | 0.0002 | 0.0013 | 0.15x | 0 mismatches |
+| Small | 100 | 458 | 8 | no | 0.0002 | 0.0022 | 0.08x | 0 mismatches |
+| Medium | 1000 | 9951 | 1 | no | 0.0054 | 0.0226 | 0.24x | 0 mismatches |
+| Medium | 1000 | 9951 | 8 | no | 0.0056 | 0.0298 | 0.19x | 0 mismatches |
+| Large sparse | 5000 | 24602 | 8 | no | 0.0407 | 0.1999 | 0.20x | 0 mismatches |
+| Medium, ~10% negative edges | 1000 | 9940 | 8 | yes | 1.1621 | 4.3288 | 0.27x | seq: negative cycle, conc: negative cycle |
+
+Speedup = sequential time / concurrent time. A value below 1.00x means the concurrent solver was **slower**.
+
+An earlier captured run on a Windows machine (`output_utf8.md`, 2,000 nodes, edge_prob 0.01,
+~10% negative edges, 8 threads) shows the same pattern: sequential 5.177 s vs concurrent 16.488 s,
+both correctly reporting a negative-weight cycle.
+
+## Analysis
+
+- **The thread-pool version does not beat the sequential version in CPython.** Edge relaxation is
+  pure-Python, CPU-bound work, so the Global Interpreter Lock lets only one thread run Python
+  bytecode at a time. Threads add task-submission overhead and a `threading.Lock` acquire/release
+  for every edge relaxed, so the concurrent solver ran roughly 4-12x slower in every case measured.
+- **Correctness holds.** Both solvers produced identical distances on every graph without a
+  negative cycle (0 mismatches), and both detected the negative-weight cycle in the negative-edge case.
+- **Early exit dominates on positive-weight graphs.** With only positive weights the distances
+  settle in a few rounds, so both solvers finish quickly. With a negative cycle, relaxation never
+  settles and both solvers run all V-1 rounds before the detection pass, which is why that case is
+  orders of magnitude slower.
+- More threads did not help: 8 threads were no faster than 1 on the same graph.
 
 ## Conclusion
-The concurrent Bellman-Ford implementation achieves significant speedup on large sparse graphs with minimal accuracy loss. Future work can explore multiprocessing or lower-level concurrency models to further improve scalability.
 
+The concurrent implementation is a correct, thread-safe Bellman-Ford, but under CPython it is
+slower than the sequential baseline. Real speedups would need true parallelism, for example
+`multiprocessing` with shared memory, a free-threaded (no-GIL) Python build, or moving the
+relaxation loop into NumPy/C/Rust, together with per-thread update buffers instead of a lock per edge.
